@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -110,5 +111,29 @@ func calcChecksumPart1(spreadsheet [][]int) int {
 	In this example, the sum of the results would be 4 + 3 + 2 = 9.
 */
 func calcChecksumPart2(spreadsheet [][]int) int {
-	return 0
+	quotients := make([]int, len(spreadsheet))
+	// calculate quotients for each row
+	for rowNumber, row := range spreadsheet {
+		for colNumber, val := range row {
+			// check if int is an even divisor or dividend of following ints
+			for i := colNumber + 1; i < len(row); i++ {
+				if val > row[i] {
+					if math.Mod(float64(val), float64(row[i])) == 0 {
+						quotients[rowNumber] = val / row[i]
+						break
+					}
+				} else if math.Mod(float64(row[i]), float64(val)) == 0 {
+					quotients[rowNumber] = row[i] / val
+					break
+				}
+			}
+		}
+	}
+
+	// calculate checksum based on row quotients
+	checksum := 0
+	for _, quotient := range quotients {
+		checksum += quotient
+	}
+	return checksum
 }
