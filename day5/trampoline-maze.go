@@ -18,7 +18,10 @@ func main() {
 
 	// calculate how many steps it takes to escape the maze
 	numStepsPart1 := countNumStepsPart1(instructions)
+	instructions = getInstructions()
+	numStepsPart2 := countNumStepsPart2(instructions)
 	fmt.Println("Number of steps to escape the maze for part 1 is:", numStepsPart1)
+	fmt.Println("Number of steps to escape the maze for part 2 is:", numStepsPart2)
 }
 
 // helper function to parse text file containing list of integer instructions
@@ -70,6 +73,31 @@ func countNumStepsPart1(instructions []int) int {
 		currPosition := nextPosition
 		nextPosition = nextPosition + instructions[nextPosition]
 		instructions[currPosition]++
+		numSteps++
+	}
+	return numSteps
+}
+
+/*
+	Part 2 Rules:
+	Now, the jumps are even stranger: after each jump, if the offset was three or more, instead decrease it by 1. Otherwise, increase it by 1 as before.
+
+	Using this rule with the above example, the process now takes 10 steps, and the offset values after finding the exit are left as 2 3 2 3 -1.
+
+	How many steps does it now take to reach the exit?
+*/
+func countNumStepsPart2(instructions []int) int {
+	numSteps := 0
+	nextPosition := 0
+	for nextPosition < len(instructions) {
+		currPosition := nextPosition
+		offset := instructions[nextPosition]
+		nextPosition = nextPosition + instructions[nextPosition]
+		if offset > 2 {
+			instructions[currPosition]--
+		} else {
+			instructions[currPosition]++
+		}
 		numSteps++
 	}
 	return numSteps
