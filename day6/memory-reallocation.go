@@ -20,7 +20,9 @@ func main() {
 
 	// calculate how many redistribution cycles it takes to find an existing configuration
 	numCyclesPart1 := countNumCyclesPart1(banks)
+	numCyclesPart2 := countNumCyclesPart2(banks)
 	fmt.Println("Number of cycles to redistribute for part 1 is:", numCyclesPart1)
+	fmt.Println("Number of cycles to redistribute for part 2 is:", numCyclesPart2)
 }
 
 // helper function to parse text file containing list of integer instructions
@@ -110,6 +112,73 @@ func countNumCyclesPart1(banks []int) int {
 		banksCopy := make([]int, len(banks))
 		copy(banksCopy, banks)
 		configurations = append(configurations, banksCopy)
+	}
+
+	return numCycles
+}
+
+/*
+	Part 2 Rules:
+	Out of curiosity, the debugger would also like to know the size of the loop: starting from a state that has already been seen, how many block redistribution cycles must be performed before that same state is seen again?
+
+	In the example above, 2 4 1 2 is seen again after four cycles, and so the answer in that example would be 4.
+
+	How many cycles are in the infinite loop that arises from the configuration in your puzzle input?
+*/
+func countNumCyclesPart2(banks []int) int {
+	numCycles := 0
+	bankPosition := 0
+	configurationSeen := false
+	configurationSeenTwice := false
+	configurations := make([][]int, 0)
+	seenConfig := make([]int, 1)
+	// keep redistributing blocks until we reach a configuration we've seen before (indicates infinite loop)
+	for !configurationSeenTwice {
+		if configurationSeen {
+			numCycles++
+		}
+		max := 0
+		bankPosition = 0
+		// get bank with highest number of blocks
+		for i, blocks := range banks {
+			if blocks > max {
+				bankPosition = i
+				max = blocks
+			}
+		}
+		numBlocksRemaining := banks[bankPosition]
+
+		// remove all blocks from highest bank
+		banks[bankPosition] = 0
+
+		// redistribute blocks among other banks
+		for numBlocksRemaining > 0 {
+			// increment position, wrapping around to beginning if needed
+			if bankPosition == len(banks)-1 {
+				bankPosition = 0
+			} else {
+				bankPosition++
+			}
+			banks[bankPosition]++
+			numBlocksRemaining--
+		}
+		// store this configuration if it doesn't exist, otherwise quit
+		if !configurationSeen {
+			banksCopy := make([]int, len(banks))
+			copy(banksCopy, banks)
+			for _, config := range configurations {
+				if reflect.DeepEqual(config, banks) {
+					// store already-seen config
+					configurationSeen = true
+					seenConfig = banksCopy
+				}
+			}
+			configurations = append(configurations, banksCopy)
+		} else {
+			if reflect.DeepEqual(banks, seenConfig) {
+				configurationSeenTwice = true
+			}
+		}
 	}
 
 	return numCycles
