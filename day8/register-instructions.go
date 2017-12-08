@@ -18,9 +18,10 @@ func main() {
 	instructions := getInstructions()
 
 	// calculate max register value
-	maxRegisterPart1 := calcMaxRegisterPart1(instructions)
+	maxRegisterPart1 := calcMaxRegister(instructions, false)
 	fmt.Println("Largest value in any register for part 1 is:", maxRegisterPart1)
-
+	maxRegisterPart2 := calcMaxRegister(instructions, true)
+	fmt.Println("Largest value ever held in any register for part 2 is:", maxRegisterPart2)
 }
 
 // helper function to parse text file containing list of string instructions
@@ -58,11 +59,14 @@ func getInstructions() []string {
 	You might also encounter <= (less than or equal to) or != (not equal to). However, the CPU doesn't have the bandwidth to tell you what all the registers are named, and leaves that to you to determine.
 
 	What is the largest value in any register after completing the instructions in your puzzle input?
+
+	Part 2 Rules:
+	To be safe, the CPU also needs to know the highest value held in any register during this process so that it can decide how much memory to allocate to these operations. For example, in the above instructions, the highest value ever held was 10 (in register c after the third instruction was evaluated).
 */
-func calcMaxRegisterPart1(instructions []string) int {
+func calcMaxRegister(instructions []string, isPart2 bool) int {
 	// store registers in dictionary for fast lookup by name
 	dict := make(map[string]int)
-
+	max := -10000
 	// loop through instructions
 	for _, instruction := range instructions {
 		instructionSet := strings.Split(instruction, " ")
@@ -86,13 +90,19 @@ func calcMaxRegisterPart1(instructions []string) int {
 			} else if instructionSet[1] == "dec" {
 				dict[register] -= valueToChangeBy
 			}
+			if isPart2 {
+				if dict[register] > max {
+					max = dict[register]
+				}
+			}
 		}
 	}
-	max := -10000
-	// loop through map to find greatest value
-	for _, v := range dict {
-		if v > max {
-			max = v
+	if !isPart2 {
+		// loop through map to find greatest value
+		for _, v := range dict {
+			if v > max {
+				max = v
+			}
 		}
 	}
 	return max
