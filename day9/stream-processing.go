@@ -15,8 +15,10 @@ func main() {
 	stream := getStream()
 
 	// process stream
-	totalScorePart1 := calcScorePart1(stream)
-	fmt.Println("Total for part 1 is:", totalScorePart1)
+	totalScorePart1 := calcScore(stream, false)
+	garbageCountPart2 := calcScore(stream, true)
+	fmt.Println("Total score for part 1 is:", totalScorePart1)
+	fmt.Println("Garbage count for part 2 is:", garbageCountPart2)
 }
 
 // helper function to parse text file containing string stream
@@ -67,10 +69,25 @@ func getStream() string {
 	{{<!!>},{<!!>},{<!!>},{<!!>}}, score of 1 + 2 + 2 + 2 + 2 = 9.
 	{{<a!>},{<a!>},{<a!>},{<ab>}}, score of 1 + 2 = 3.
 	What is the total score for all groups in your input?
+
+	Part 2 Rules:
+	Now, you're ready to remove the garbage.
+
+	To prove you've removed it, you need to count all of the characters within the garbage. The leading and trailing < and > don't count, nor do any canceled characters or the ! doing the canceling.
+
+	<>, 0 characters.
+	<random characters>, 17 characters.
+	<<<<>, 3 characters.
+	<{!>}>, 2 characters.
+	<!!>, 0 characters.
+	<!!!>>, 0 characters.
+	<{o"i!a,<{i<a>, 10 characters.
+	How many non-canceled characters are within the garbage in your puzzle input?
 */
-func calcScorePart1(stream string) int {
+func calcScore(stream string, isPart2 bool) int {
 	totalScore := 0
 	numGroups := 0
+	garbageCount := 0
 	insideGarbage := false
 	ignore := false
 
@@ -85,6 +102,8 @@ func calcScorePart1(stream string) int {
 		}
 		if ch == "!" {
 			ignore = true
+		} else if insideGarbage && ch != ">" {
+			garbageCount++
 		}
 
 		// handle garbage
@@ -108,5 +127,10 @@ func calcScorePart1(stream string) int {
 			}
 		}
 	}
+
+	if isPart2 {
+		return garbageCount
+	}
+
 	return totalScore
 }
