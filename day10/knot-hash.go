@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +20,10 @@ func main() {
 
 	// calulate result
 	resultPart1 := calcResult(lengths)
+	bytes := getBytes()
+	resultPart2 := calcResultPart2(bytes)
 	fmt.Println("Result for part 1 is:", resultPart1)
+	fmt.Println("Result for part 2 is:", resultPart2)
 }
 
 // helper function to parse text file containing comma-separated list of ints
@@ -42,6 +46,12 @@ func getLengths() []int {
 	}
 
 	return lengths
+}
+
+// helper function to parse text file containing string of bytes
+func getBytes() []byte {
+	bytes, _ := ioutil.ReadFile("input.txt")
+	return bytes
 }
 
 /*
@@ -123,4 +133,144 @@ func calcResult(lengths []int) int {
 		skipSize++
 	}
 	return list[0] * list[1]
+}
+
+/*
+	Part 2 Rules:
+	The logic you've constructed forms a single round of the Knot Hash algorithm; running the full thing requires many of these rounds. Some input and output processing is also required.
+
+	First, from now on, your input should be taken not as a list of numbers, but as a string of bytes instead. Unless otherwise specified, convert characters to bytes using their ASCII codes. This will allow you to handle arbitrary ASCII strings, and it also ensures that your input lengths are never larger than 255. For example, if you are given 1,2,3, you should convert it to the ASCII codes for each character: 49,44,50,44,51.
+
+	Once you have determined the sequence of lengths to use, add the following lengths to the end of the sequence: 17, 31, 73, 47, 23. For example, if you are given 1,2,3, your final sequence of lengths should be 49,44,50,44,51,17,31,73,47,23 (the ASCII codes from the input string combined with the standard length suffix values).
+
+	Second, instead of merely running one round like you did above, run a total of 64 rounds, using the same length sequence in each round. The current position and skip size should be preserved between rounds. For example, if the previous example was your first round, you would start your second round with the same length sequence (3, 4, 1, 5, 17, 31, 73, 47, 23, now assuming they came from ASCII codes and include the suffix), but start with the previous round's current position (4) and skip size (4).
+
+	Once the rounds are complete, you will be left with the numbers from 0 to 255 in some order, called the sparse hash. Your next task is to reduce these to a list of only 16 numbers called the dense hash. To do this, use numeric bitwise XOR to combine each consecutive block of 16 numbers in the sparse hash (there are 16 such blocks in a list of 256 numbers). So, the first element in the dense hash is the first sixteen elements of the sparse hash XOR'd together, the second element in the dense hash is the second sixteen elements of the sparse hash XOR'd together, etc.
+
+	For example, if the first sixteen elements of your sparse hash are as shown below, and the XOR operator is ^, you would calculate the first output number like this:
+
+	65 ^ 27 ^ 9 ^ 1 ^ 4 ^ 3 ^ 40 ^ 50 ^ 91 ^ 7 ^ 6 ^ 0 ^ 2 ^ 5 ^ 68 ^ 22 = 64
+	Perform this operation on each of the sixteen blocks of sixteen numbers in your sparse hash to determine the sixteen numbers in your dense hash.
+
+	Finally, the standard way to represent a Knot Hash is as a single hexadecimal string; the final output is the dense hash in hexadecimal notation. Because each number in your dense hash will be between 0 and 255 (inclusive), always represent each number as two hexadecimal digits (including a leading zero as necessary). So, if your first three numbers are 64, 7, 255, they correspond to the hexadecimal numbers 40, 07, ff, and so the first six characters of the hash would be 4007ff. Because every Knot Hash is sixteen such numbers, the hexadecimal representation is always 32 hexadecimal digits (0-f) long.
+
+	Here are some example hashes:
+
+	The empty string becomes a2582a3a0e66e6e86e3812dcb672a272.
+	AoC 2017 becomes 33efeb34ea91902bb2f59c9920caa6cd.
+	1,2,3 becomes 3efbe78a8d82f29979031a4aa0b16a9d.
+	1,2,4 becomes 63960835bcdc130f0b66d7ff4f6a5a8e.
+	Treating your puzzle input as a string of ASCII characters, what is the Knot Hash of your puzzle input? Ignore any leading or trailing whitespace you might encounter.
+*/
+func calcResultPart2(bytes []byte) string {
+	// add specified lengths to end of sequence
+	bytes = append(bytes, byte(17))
+	bytes = append(bytes, byte(31))
+	bytes = append(bytes, byte(73))
+	bytes = append(bytes, byte(47))
+	bytes = append(bytes, byte(23))
+
+	// convert bytes to ints
+	ints := make([]int, 0)
+	for _, b := range bytes {
+		ints = append(ints, int(b))
+	}
+
+	var currPosition int
+	var skipSize int
+	var result []int
+
+	// create list
+	listSize := 256
+	list := make([]int, listSize)
+
+	// initialize list
+	for i := 0; i < listSize; i++ {
+		list[i] = i
+	}
+
+	// run 64 rounds of calculations, preserving skipSize and position
+	for i := 0; i < 64; i++ {
+		result = calcResultBytes(list, ints, &currPosition, &skipSize)
+	}
+
+	// calculate sparse hash
+	start := 0
+	end := 15
+	bitwiseResults := make([]int, 16)
+	blockNum := 0
+
+	// for each 16 blocks in result, calculate bitwise XOR for the 16 numbers in that block
+	for blockNum < 16 {
+		bitwiseResult := 0
+		for i := start; i <= end; i++ {
+			if end-i == 15 {
+				bitwiseResult = result[i]
+				continue
+			}
+			bitwiseResult = bitwiseResult ^ result[i]
+
+		}
+		bitwiseResults[blockNum] = bitwiseResult
+		blockNum++
+		start += 16
+		end += 16
+	}
+
+	// convert to hex
+	hexResult := ""
+	for _, number := range bitwiseResults {
+		hexResult += fmt.Sprintf("%02x", number)
+	}
+
+	return hexResult
+}
+
+// similar to part 1, but altered to fit part 2 (handle multiple wraparounds and pass in list, position, and skip size)
+func calcResultBytes(list []int, lengths []int, currPosition *int, skipSize *int) []int {
+	for _, length := range lengths {
+		// calculate sublist indices
+		sublistStartIndex := *currPosition
+		sublistEndIndex := *currPosition + length - 1
+
+		if sublistEndIndex > len(list)-1 {
+			// handle wraparound
+			sublistEndIndex = sublistEndIndex - len(list)
+		}
+
+		// reverse sublist in-place if more than one element in sublist
+		if length > 1 {
+			numSwapped := 0
+			for sublistEndIndex != sublistStartIndex && numSwapped < length/2 {
+				temp := list[sublistStartIndex]
+				list[sublistStartIndex] = list[sublistEndIndex]
+				list[sublistEndIndex] = temp
+				sublistEndIndex--
+				sublistStartIndex++
+				numSwapped++
+
+				// handle wraparound
+				if sublistStartIndex > len(list)-1 {
+					sublistStartIndex = 0
+				}
+				if sublistEndIndex == -1 {
+					sublistEndIndex = len(list) - 1
+				}
+
+			}
+		}
+
+		// increment current position and skip size
+		*currPosition += length + *skipSize
+		if *currPosition > len(list)-1 {
+			// handle wraparound
+			if *currPosition/len(list) > 1 {
+				*currPosition = *currPosition - len(list)*(*currPosition/len(list))
+			} else {
+				*currPosition = *currPosition - len(list)
+			}
+		}
+		*skipSize++
+	}
+	return list
 }
